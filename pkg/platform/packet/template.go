@@ -251,4 +251,32 @@ provider "packet" {
 output "initialized" {
   value = true
 }
+
+# values.yaml content for all deployed charts.
+output "kube-apiserver_values" {
+  value     = module.packet-{{.Config.ClusterName}}.kube-apiserver_values
+  sensitive = true
+}
+
+output "kubernetes_values" {
+  value     = module.packet-{{.Config.ClusterName}}.kubernetes_values
+  sensitive = true
+}
+
+output "kubelet_values" {
+  value     = module.packet-{{.Config.ClusterName}}.kubelet_values
+  sensitive = true
+}
+
+output "calico_values" {
+  value = module.packet-{{.Config.ClusterName}}.calico_values
+}
+
+output "flannel_values" {
+  value = module.packet-{{.Config.ClusterName}}.flannel_values
+}
+
+output "kube-router_values" {
+  value = module.packet-{{.Config.ClusterName}}.kube-router_values
+}
 `
