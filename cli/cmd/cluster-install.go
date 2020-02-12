@@ -78,6 +78,18 @@ func runClusterInstall(cmd *cobra.Command, args []string) {
 		ctxLogger.Fatalf("Verify cluster installation: %v", err)
 	}
 
+	cu := controlplaneUpdater{
+		kubeconfigPath: kubeconfigPath,
+		assetDir:       assetDir,
+		ctxLogger:      *ctxLogger,
+		ex:             *ex,
+	}
+
+	// TODO: Check what networking solution we use and update that.
+	for _, c := range []string{"kube-apiserver", "kubernetes", "kubelet", "calico"} {
+		cu.upgradeComponent(c)
+	}
+
 	if skipComponents {
 		return
 	}
