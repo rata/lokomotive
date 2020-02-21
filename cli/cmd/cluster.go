@@ -188,6 +188,8 @@ func (c controlplaneUpdater) upgradeComponent(component string) {
 
 	update := action.NewUpgrade(actionConfig)
 
+	update.Atomic = true
+
 	if _, err := update.Run(component, helmChart, values); err != nil {
 		ctxLogger.Fatalf("Updating chart failed: %v", err)
 	}
