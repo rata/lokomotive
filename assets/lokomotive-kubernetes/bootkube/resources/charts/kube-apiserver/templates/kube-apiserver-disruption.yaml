@@ -1,0 +1,13 @@
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: kube-apiserver
+spec:
+  {{- if eq (int .Values.apiserver.replicas) 1 }}
+  minAvailable: 1
+  {{- else }}
+  maxUnavailable: 1
+  {{- end }}
+  selector:
+    matchLabels:
+      k8s-app: kube-apiserver

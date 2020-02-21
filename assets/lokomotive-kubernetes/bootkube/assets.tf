@@ -33,6 +33,8 @@ resource "local_file" "kube-apiserver" {
     aggregation_ca_cert     = var.enable_aggregation == true ? base64encode(join(" ", tls_self_signed_cert.aggregation-ca.*.cert_pem)) : ""
     aggregation_client_cert = var.enable_aggregation == true ? base64encode(join(" ", tls_locally_signed_cert.aggregation-client.*.cert_pem)) : ""
     aggregation_client_key  = var.enable_aggregation == true ? base64encode(join(" ", tls_private_key.aggregation-client.*.private_key_pem)) : ""
+    replicas                = length(var.etcd_servers)
+    expose_on_all_ports     = var.expose_on_all_ports
   })
 }
 

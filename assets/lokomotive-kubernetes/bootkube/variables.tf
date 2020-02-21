@@ -139,3 +139,9 @@ variable "external_apiserver_port" {
   type        = number
   default     = 6443
 }
+
+variable "expose_on_all_ports" {
+  description = "Controls if kube-apiserver should listen on all interfaces on port 6443"
+  type        = bool
+  default     = false
+}

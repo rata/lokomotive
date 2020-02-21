@@ -1,5 +1,12 @@
+{{ define "port" }}
+{{- if .Values.apiserver.exposeOnAllPorts -}}
+7443
+{{- else -}}
+6443
+{{- end -}}
+{{ end }}
 apiVersion: apps/v1
-kind: DaemonSet
+kind: Deployment
 metadata:
   name: kube-apiserver
   namespace: kube-system
@@ -7,14 +14,19 @@ metadata:
     tier: control-plane
     k8s-app: kube-apiserver
 spec:
+  replicas: {{ .Values.apiserver.replicas }}
   selector:
     matchLabels:
       tier: control-plane
       k8s-app: kube-apiserver
-  updateStrategy:
+  strategy:
     type: RollingUpdate
     rollingUpdate:
+      {{- if eq (int .Values.apiserver.replicas) 1 }}
+      maxUnavailable: 0
+      {{- else }}
       maxUnavailable: 1
+      {{- end }}
   template:
     metadata:
       labels:
@@ -24,6 +36,18 @@ spec:
         checkpointer.alpha.coreos.com/checkpoint: "true"
         seccomp.security.alpha.kubernetes.io/pod: 'docker/default'
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: k8s-app
+                  operator: In
+                  values:
+                  - kube-apiserver
+              topologyKey: kubernetes.io/hostname
       hostNetwork: true
       nodeSelector:
         node.kubernetes.io/master: ""
@@ -37,38 +61,42 @@ spec:
       - name: kube-apiserver
         image: {{ .Values.apiserver.image }}
         command:
-        - /hyperkube
-        - kube-apiserver
-        - --advertise-address=$(POD_IP)
-        - --allow-privileged=true
-        - --anonymous-auth=false
-        - --authorization-mode=RBAC
-        - --bind-address=0.0.0.0
-        - --client-ca-file=/etc/kubernetes/secrets/ca.crt
-        - --cloud-provider={{ .Values.apiserver.cloudProvider }}
-        - --enable-admission-plugins=NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultTolerationSeconds,DefaultStorageClass,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota,Priority,PodSecurityPolicy
-        - --etcd-cafile=/etc/kubernetes/secrets/etcd-client-ca.crt
-        - --etcd-certfile=/etc/kubernetes/secrets/etcd-client.crt
-        - --etcd-keyfile=/etc/kubernetes/secrets/etcd-client.key
-        - --etcd-servers={{ .Values.apiserver.etcdServers}}
-        - --insecure-port=0
-        - --kubelet-client-certificate=/etc/kubernetes/secrets/apiserver.crt
-        - --kubelet-client-key=/etc/kubernetes/secrets/apiserver.key
-        - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
-        - --secure-port=6443
-        - --service-account-key-file=/etc/kubernetes/secrets/service-account.pub
-        - --service-cluster-ip-range={{ .Values.apiserver.serviceCIDR }}
-        - --storage-backend=etcd3
-        - --tls-cert-file=/etc/kubernetes/secrets/apiserver.crt
-        - --tls-private-key-file=/etc/kubernetes/secrets/apiserver.key
-        {{- if .Values.apiserver.enableAggregation }}
-        - --proxy-client-cert-file=/etc/kubernetes/secrets/aggregation-client.crt
-        - --proxy-client-key-file=/etc/kubernetes/secrets/aggregation-client.key
-        - --requestheader-client-ca-file=/etc/kubernetes/secrets/aggregation-ca.crt
-        - --requestheader-extra-headers-prefix=X-Remote-Extra-
-        - --requestheader-group-headers=X-Remote-Group
-        - --requestheader-username-headers=X-Remote-User
-        {{- end }}
+        - /bin/sh
+        - -c
+        - |
+          set -x && \
+          exec /hyperkube \
+          kube-apiserver \
+          --advertise-address=$(POD_IP) \
+          --allow-privileged=true \
+          --anonymous-auth=false \
+          --authorization-mode=RBAC \
+          --bind-address=$(cat /run/kube-apiserver/address) \
+          --client-ca-file=/etc/kubernetes/secrets/ca.crt \
+          --cloud-provider={{ .Values.apiserver.cloudProvider }} \
+          --enable-admission-plugins=NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultTolerationSeconds,DefaultStorageClass,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota,Priority,PodSecurityPolicy \
+          --etcd-cafile=/etc/kubernetes/secrets/etcd-client-ca.crt \
+          --etcd-certfile=/etc/kubernetes/secrets/etcd-client.crt \
+          --etcd-keyfile=/etc/kubernetes/secrets/etcd-client.key \
+          --etcd-servers={{ .Values.apiserver.etcdServers}} \
+          --insecure-port=0 \
+          --kubelet-client-certificate=/etc/kubernetes/secrets/apiserver.crt \
+          --kubelet-client-key=/etc/kubernetes/secrets/apiserver.key \
+          --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname \
+          --secure-port={{ template "port" . }} \
+          --service-account-key-file=/etc/kubernetes/secrets/service-account.pub \
+          --service-cluster-ip-range={{ .Values.apiserver.serviceCIDR }} \
+          --tls-cert-file=/etc/kubernetes/secrets/apiserver.crt \
+          --tls-private-key-file=/etc/kubernetes/secrets/apiserver.key \
+          {{ if .Values.apiserver.enableAggregation -}}
+          --proxy-client-cert-file=/etc/kubernetes/secrets/aggregation-client.crt \
+          --proxy-client-key-file=/etc/kubernetes/secrets/aggregation-client.key \
+          --requestheader-client-ca-file=/etc/kubernetes/secrets/aggregation-ca.crt \
+          --requestheader-extra-headers-prefix=X-Remote-Extra- \
+          --requestheader-group-headers=X-Remote-Group \
+          --requestheader-username-headers=X-Remote-User \
+          {{ end -}}
+          --storage-backend=etcd3
         env:
         - name: POD_IP
           valueFrom:
@@ -81,6 +109,67 @@ spec:
         - name: ssl-certs-host
           mountPath: /etc/ssl/certs
           readOnly: true
+        - name: data
+          mountPath: /run/kube-apiserver
+      - name: haproxy
+        image: haproxy:2.1.3-alpine
+        volumeMounts:
+        - name: data
+          mountPath: /run/kube-apiserver
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -x && \
+          export ADDRESS=$(cat /run/kube-apiserver/address) && \
+          if [ -z $ADDRESS ]; then \
+            echo "ADDRESS not found" && \
+            exit 1; \
+          fi && \
+          echo "defaults \
+            # Do TLS passthrough \
+            mode tcp \
+            # Required values for both frontend and backend
+            timeout connect 5000ms
+            timeout client 50000ms
+            timeout server 50000ms
+
+          frontend kube-apiserver-internal
+            bind $POD_IP:{{ template "port" . }}
+            default_backend kube-apiserver
+
+          {{- if .Values.apiserver.exposeOnAllPorts }}
+          frontend kube-apiserver-external
+            bind 0.0.0.0:6443
+            default_backend kube-apiserver
+
+          {{- end }}
+          backend kube-apiserver
+            server 1 $ADDRESS:{{ template "port" . }} check" > /run/kube-apiserver/haproxy.cfg && \
+          echo "Connecting to $ADDRESS:{{ template "port" . }}" && \
+          until nc -zv $ADDRESS {{ template "port" . }}; do sleep 1; done && \
+          echo "Connected" && \
+          # From https://github.com/docker-library/haproxy/blob/master/Dockerfile-debian.template#L70
+          exec haproxy -f /run/kube-apiserver/haproxy.cfg
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        readinessProbe:
+          tcpSocket:
+            port: {{ template "port" . }}
+      initContainers:
+      - name: port-generator
+        image: haproxy:2.1.3-alpine
+        command:
+        - /bin/sh
+        - -c
+        - |
+          echo "127.$(shuf -i 0-255 -n 1).$(shuf -i 0-255 -n 1).$(shuf -i 1-253 -n 1)" | tee /run/kube-apiserver/address
+        volumeMounts:
+        - name: data
+          mountPath: /run/kube-apiserver
       securityContext:
         runAsNonRoot: true
         runAsUser: 65534
@@ -91,3 +180,5 @@ spec:
       - name: ssl-certs-host
         hostPath:
           path: {{ .Values.apiserver.trustedCertsDir }}
+      - name: data
+        emptyDir: {}

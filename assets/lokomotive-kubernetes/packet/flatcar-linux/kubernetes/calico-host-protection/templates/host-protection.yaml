@@ -47,7 +47,7 @@ spec:
   - action: Allow
     protocol: TCP
     destination:
-      ports: [6443]
+      ports: [6443, 7443]
 ---
 # Traffic between cluster nodes
 apiVersion: crd.projectcalico.org/v1

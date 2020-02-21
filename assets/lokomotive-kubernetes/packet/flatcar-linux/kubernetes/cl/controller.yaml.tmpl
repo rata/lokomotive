@@ -271,6 +271,7 @@ storage:
           -A INPUT -p tcp --dport 2380 -j ACCEPT
           -A INPUT -p tcp --dport 2381 -j ACCEPT
           -A INPUT -p tcp --dport 6443 -j ACCEPT
+          -A INPUT -p tcp --dport 7443 -j ACCEPT
           -A INPUT -p tcp --dport 10250 -j ACCEPT
           -A INPUT -p tcp --dport 10256 -j ACCEPT
           -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
