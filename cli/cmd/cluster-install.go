@@ -89,7 +89,7 @@ func runClusterInstall(cmd *cobra.Command, args []string) {
 		}
 
 		// TODO: Check what networking solution we use and update that.
-		for _, c := range []string{"kube-apiserver", "kubernetes", "kubelet", "calico"} {
+		for _, c := range []string{"kube-apiserver", "kubernetes", "calico"} { //,"kubelet"} {
 			cu.upgradeComponent(c)
 		}
 	}
