@@ -15,7 +15,10 @@
 package util
 
 import (
+	"bytes"
 	"fmt"
+	"net/http"
+	"net/url"
 	"os"
 	"testing"
 	"time"
@@ -27,7 +30,10 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/portforward"
+	"k8s.io/client-go/transport/spdy"
 )
 
 func KubeconfigPath(t *testing.T) string {
@@ -185,4 +191,80 @@ func filterNonControllerPods(pods *corev1.PodList) *corev1.PodList {
 	}
 	pods.Items = filteredPods
 	return pods
+}
+
+type PortForwardInfo struct {
+	ReadyChan chan struct{}
+	StopChan  chan struct{}
+	// Port forwarding only works with a pod. Even if we ask user to provide the service name, we
+	// still have to figure out the pod name and select one of the pod the service is pointing at.
+	// Instead we can rely on the fact that prometheus pods are started by statefulset and will
+	// always have consistent naming.
+	PodName       string
+	Namespace     string
+	PodPort       int
+	LocalPort     int
+	PortForwarder *portforward.PortForwarder
+}
+
+func (p *PortForwardInfo) CloseChan() {
+	close(p.StopChan)
+	close(p.ReadyChan)
+}
+
+func (p *PortForwardInfo) PortForward(t *testing.T) {
+	defer p.CloseChan()
+
+	config, err := buildKubeConfig(t)
+	if err != nil {
+		t.Fatalf("could not build config from KUBECONFIG: %v", err)
+	}
+
+	roundTripper, upgrader, err := spdy.RoundTripperFor(config)
+	if err != nil {
+		t.Fatalf("could not create round tripper: %v", err)
+	}
+
+	serverURL, err := url.Parse(config.Host)
+	if err != nil {
+		t.Fatalf("could not parse the URL from kubeconfig: %v", err)
+	}
+
+	serverURL.Path = fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/portforward", p.Namespace, p.PodName)
+	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: roundTripper}, http.MethodPost, serverURL)
+
+	ports := []string{fmt.Sprintf("0:%d", p.PodPort)}
+
+	out, errOut := new(bytes.Buffer), new(bytes.Buffer)
+
+	forwarder, err := portforward.New(dialer, ports, p.StopChan, p.ReadyChan, out, errOut)
+	if err != nil {
+		t.Fatalf("could not create forwarder: %v", err)
+	}
+	p.PortForwarder = forwarder
+
+	// This function will print any error or output to stdout
+	go func() {
+		for range p.ReadyChan {
+		}
+		t.Logf("output of port forwarder:\n%s\n", out.String())
+		if len(errOut.String()) != 0 {
+			t.Fatal(errOut.String())
+		}
+	}()
+
+	if err := forwarder.ForwardPorts(); err != nil { // Locks until stopChan is closed.
+		t.Fatalf("could not establish port forwarding: %v", err)
+	}
+}
+
+func (p *PortForwardInfo) FindLocalPort(t *testing.T) {
+	forwardedPorts, err := p.PortForwarder.GetPorts()
+	if err != nil {
+		t.Fatalf("could not get information about ports: %v", err)
+	}
+	if len(forwardedPorts) != 1 {
+		t.Fatalf("number of forwarded ports not 1, currently forwarding on %d ports.", len(forwardedPorts))
+	}
+	p.LocalPort = int(forwardedPorts[0].Local)
 }
