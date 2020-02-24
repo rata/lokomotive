@@ -47,7 +47,7 @@ test: check-go-format run-unit-tests
 
 .PHONY: lint
 lint:
-	golangci-lint run --enable-all --disable=godox --max-same-issues=0 --max-issues-per-linter=0 --build-tags aws,packet,e2e,disruptive-e2e --new-from-rev=$$(git merge-base master HEAD) --modules-download-mode=$(MOD) --timeout=5m ./...
+	golangci-lint run --enable-all --disable=godox --max-same-issues=0 --max-issues-per-linter=0 --build-tags aws,packet,e2e,disruptive-e2e,prometheus --new-from-rev=$$(git merge-base master HEAD) --modules-download-mode=$(MOD) --timeout=5m ./...
 
 GOFORMAT_FILES := $(shell find . -name '*.go' | grep -v '^./vendor')
 
@@ -74,6 +74,8 @@ endif
 .PHONY: run-e2e-tests
 run-e2e-tests:
 	KUBECONFIG=${kubeconfig} go test -mod=$(MOD) -tags="$(platform),e2e" -covermode=atomic -buildmode=exe -v ./...
+	# Test if the metrics are actually being scraped
+	KUBECONFIG=${kubeconfig} go test -mod=$(MOD) -tags="$(platform),prometheus" -covermode=atomic -buildmode=exe -v ./...
 	# This is a test that should be run in the end to reduce the disruption to other tests because
 	# it will delete a node.
 	KUBECONFIG=${kubeconfig} go test -mod=$(MOD) -tags="$(platform),disruptive-e2e" -covermode=atomic -buildmode=exe -v ./...
