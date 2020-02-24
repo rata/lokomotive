@@ -196,21 +196,33 @@ func (c controlplaneUpdater) upgradeComponent(component string) {
 	}
 
 	if err == driver.ErrReleaseNotFound {
+		fmt.Printf("Controlplane component '%s' is missing, reinstalling...", component)
+
 		install := action.NewInstall(actionConfig)
 		install.ReleaseName = component
 		install.Namespace = "kube-system"
 		install.Atomic = true
 
 		if _, err := install.Run(helmChart, map[string]interface{}{}); err != nil {
+			fmt.Println("Failed!")
+
 			ctxLogger.Fatalf("Installing controlplane component failed: %v", err)
 		}
+
+		fmt.Println("Done.")
 	}
 
 	update := action.NewUpgrade(actionConfig)
 
 	update.Atomic = true
 
+	fmt.Printf("Ensuring controlplane component '%s' is up to date... ", component)
+
 	if _, err := update.Run(component, helmChart, values); err != nil {
+		fmt.Println("Failed!")
+
 		ctxLogger.Fatalf("Updating chart failed: %v", err)
 	}
+
+	fmt.Println("Done.")
 }
