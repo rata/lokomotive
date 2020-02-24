@@ -44,7 +44,7 @@ require (
 	github.com/pelletier/go-toml v1.6.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/alertmanager v0.20.0
-	github.com/prometheus/client_golang v1.4.0 // indirect
+	github.com/prometheus/client_golang v1.4.0
 	github.com/russross/blackfriday v2.0.0+incompatible // indirect
 	github.com/shirou/gopsutil v2.19.12+incompatible
 	github.com/shurcooL/httpfs v0.0.0-20190707220628-8d4bc4ba7749
