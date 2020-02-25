@@ -82,7 +82,7 @@ func NewConfig() *config {
 		OSChannel:       "stable",
 		OSVersion:       "current",
 		ControllerCount: 1,
-		ControllerType:  "t3.small",
+		ControllerType:  "t3.medium",
 		WorkerCount:     2,
 		WorkerType:      "t3.small",
 		Region:          "eu-central-1",
