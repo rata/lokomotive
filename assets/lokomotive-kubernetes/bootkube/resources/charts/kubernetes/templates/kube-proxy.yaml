@@ -64,6 +64,9 @@ spec:
         - name: ssl-certs-host
           mountPath: /etc/ssl/certs
           readOnly: true
+        resources:
+          requests:
+            memory: "20Mi"
       volumes:
       - name: kubeconfig
         configMap:

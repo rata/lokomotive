@@ -81,6 +81,9 @@ spec:
         - name: ssl-certs-host
           mountPath: /etc/ssl/certs
           readOnly: true
+        resources:
+          requests:
+            memory: "500Mi"
       securityContext:
         runAsNonRoot: true
         runAsUser: 65534
