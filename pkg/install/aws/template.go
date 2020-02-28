@@ -95,7 +95,7 @@ module "aws-{{.Config.ClusterName}}" {
 }
 
 provider "aws" {
-  version = "~> 2.31.0"
+  version = "~> 2.48.0"
   alias   = "default"
 
   region                  = "{{.Config.Region}}"
@@ -109,7 +109,7 @@ provider "ct" {
 }
 
 provider "local" {
-  version = "~> 1.2"
+  version = "~> 1.4"
   alias   = "default"
 }
 

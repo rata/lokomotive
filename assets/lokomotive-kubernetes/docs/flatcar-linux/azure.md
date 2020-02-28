@@ -21,7 +21,7 @@ Install [Terraform](https://www.terraform.io/downloads.html) v0.12.x on your sys
 
 ```sh
 $ terraform version
-Terraform v0.12.17
+Terraform v0.12.20
 ```
 
 Add the [terraform-provider-ct](https://github.com/poseidon/terraform-provider-ct) plugin binary for your system to `~/.terraform.d/plugins/`, noting the final name.
@@ -59,7 +59,7 @@ provider "ct" {
 }
 
 provider "local" {
-  version = "~> 1.2"
+  version = "~> 1.4"
   alias   = "default"
 }
 

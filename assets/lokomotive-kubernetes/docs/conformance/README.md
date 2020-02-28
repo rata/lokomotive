@@ -10,7 +10,7 @@ Create a lokomotive cluster. In this case I followed the [packet tutorial](../fl
 # providers.tf
 
 provider "aws" {
-  version = "~> 2.25.0"
+  version = "~> 2.48.0"
   alias = "default"
 
   region = "eu-central-1"
@@ -22,7 +22,7 @@ provider "ct" {
 }
 
 provider "local" {
-  version = "~> 1.2"
+  version = "~> 1.4"
   alias = "default"
 }
 
