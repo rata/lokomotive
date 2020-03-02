@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// TODO: Add AWS here once prometheus-operator is fully supported there
-// +build packet
+// +build packet aws
 // +build prometheus
+
 package monitoring
 
 import (
@@ -24,7 +24,7 @@ import (
 	"testing"
 	"time"
 
-	testutil "github.com/kinvolk/lokomotive/test/components/util"
+	"github.com/kinvolk/lokomotive/test/components/util"
 
 	"github.com/prometheus/client_golang/api"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
@@ -65,29 +65,13 @@ func TestPrometheusMetrics(t *testing.T) {
 		},
 	}
 
-	stopChan, readyChan := make(chan struct{}, 1), make(chan struct{}, 1)
-
-	p := &testutil.PortForwardInfo{
-		PodName:   "prometheus-prometheus-operator-prometheus-0",
-		Namespace: "monitoring",
-		StopChan:  stopChan,
-		ReadyChan: readyChan,
-		PodPort:   9090,
-	}
-
-	go p.PortForward(t)
+	s, ports := util.PortForward(t, "monitoring", "prometheus-prometheus-operator-prometheus-0", []string{"0:9090"})
 	defer func() {
-		close(stopChan)
+		close(s)
 	}()
 
-	// Wait until port forwarding is available
-	for range readyChan {
-	}
-
-	p.FindLocalPort(t)
-
 	promClient, err := api.NewClient(api.Config{
-		Address: fmt.Sprintf("http://127.0.0.1:%d", p.LocalPort),
+		Address: fmt.Sprintf("http://127.0.0.1:%d", ports[0].Local),
 	})
 	if err != nil {
 		t.Fatalf("Error creating client: %v", err)
