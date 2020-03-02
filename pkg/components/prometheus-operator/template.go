@@ -64,6 +64,7 @@ prometheus:
       {{ end }}
     {{ end }}
     retention: {{.PrometheusMetricsRetention}}
+    serviceMonitorSelectorNilUsesHelmValues: {{.WatchLabeledServiceMonitors}}
     storageSpec:
       volumeClaimTemplate:
         metadata:
