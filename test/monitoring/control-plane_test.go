@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// TODO: Add AWS here once prometheus-operator is fully supported there
-// +build packet
+// +build packet aws
 // +build prometheus
+
 package monitoring
 
 import (
@@ -65,26 +65,14 @@ func TestPrometheusMetrics(t *testing.T) {
 		},
 	}
 
-	stopChan, readyChan := make(chan struct{}, 1), make(chan struct{}, 1)
-
 	p := &testutil.PortForwardInfo{
 		PodName:   "prometheus-prometheus-operator-prometheus-0",
 		Namespace: "monitoring",
-		StopChan:  stopChan,
-		ReadyChan: readyChan,
 		PodPort:   9090,
 	}
-
-	go p.PortForward(t)
-	defer func() {
-		close(stopChan)
-	}()
-
-	// Wait until port forwarding is available
-	for range readyChan {
-	}
-
-	p.FindLocalPort(t)
+	p.PortForward(t)
+	defer p.CloseChan()
+	p.WaitUntilForwardingAvailable(t)
 
 	promClient, err := api.NewClient(api.Config{
 		Address: fmt.Sprintf("http://127.0.0.1:%d", p.LocalPort),

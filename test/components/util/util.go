@@ -194,27 +194,25 @@ func filterNonControllerPods(pods *corev1.PodList) *corev1.PodList {
 }
 
 type PortForwardInfo struct {
-	ReadyChan chan struct{}
-	StopChan  chan struct{}
+	readyChan     chan struct{}
+	stopChan      chan struct{}
+	portForwarder *portforward.PortForwarder
+
 	// Port forwarding only works with a pod. Even if we ask user to provide the service name, we
 	// still have to figure out the pod name and select one of the pod the service is pointing at.
 	// Instead we can rely on the fact that prometheus pods are started by statefulset and will
 	// always have consistent naming.
-	PodName       string
-	Namespace     string
-	PodPort       int
-	LocalPort     int
-	PortForwarder *portforward.PortForwarder
+	PodName   string
+	Namespace string
+	PodPort   int
+	LocalPort int
 }
 
 func (p *PortForwardInfo) CloseChan() {
-	close(p.StopChan)
-	close(p.ReadyChan)
+	close(p.stopChan)
 }
 
 func (p *PortForwardInfo) PortForward(t *testing.T) {
-	defer p.CloseChan()
-
 	config, err := buildKubeConfig(t)
 	if err != nil {
 		t.Fatalf("could not build config from KUBECONFIG: %v", err)
@@ -236,30 +234,36 @@ func (p *PortForwardInfo) PortForward(t *testing.T) {
 	ports := []string{fmt.Sprintf("0:%d", p.PodPort)}
 
 	out, errOut := new(bytes.Buffer), new(bytes.Buffer)
+	p.stopChan, p.readyChan = make(chan struct{}, 1), make(chan struct{}, 1)
 
-	forwarder, err := portforward.New(dialer, ports, p.StopChan, p.ReadyChan, out, errOut)
+	forwarder, err := portforward.New(dialer, ports, p.stopChan, p.readyChan, out, errOut)
 	if err != nil {
+		p.CloseChan()
 		t.Fatalf("could not create forwarder: %v", err)
 	}
-	p.PortForwarder = forwarder
+	p.portForwarder = forwarder
 
 	// This function will print any error or output to stdout
 	go func() {
-		for range p.ReadyChan {
+		for range p.readyChan {
 		}
 		t.Logf("output of port forwarder:\n%s\n", out.String())
 		if len(errOut.String()) != 0 {
+			p.CloseChan()
 			t.Fatal(errOut.String())
 		}
 	}()
 
-	if err := forwarder.ForwardPorts(); err != nil { // Locks until stopChan is closed.
-		t.Fatalf("could not establish port forwarding: %v", err)
-	}
+	go func() {
+		if err := forwarder.ForwardPorts(); err != nil { // Locks until stopChan is closed.
+			p.CloseChan()
+			t.Fatalf("could not establish port forwarding: %v", err)
+		}
+	}()
 }
 
-func (p *PortForwardInfo) FindLocalPort(t *testing.T) {
-	forwardedPorts, err := p.PortForwarder.GetPorts()
+func (p *PortForwardInfo) findLocalPort(t *testing.T) {
+	forwardedPorts, err := p.portForwarder.GetPorts()
 	if err != nil {
 		t.Fatalf("could not get information about ports: %v", err)
 	}
@@ -267,4 +271,11 @@ func (p *PortForwardInfo) FindLocalPort(t *testing.T) {
 		t.Fatalf("number of forwarded ports not 1, currently forwarding on %d ports.", len(forwardedPorts))
 	}
 	p.LocalPort = int(forwardedPorts[0].Local)
+}
+
+func (p *PortForwardInfo) WaitUntilForwardingAvailable(t *testing.T) {
+	// Wait until port forwarding is available
+	for range p.readyChan {
+	}
+	p.findLocalPort(t)
 }
