@@ -81,7 +81,7 @@ func initialize(ctxLogger *logrus.Entry) (*terraform.Executor, platform.Platform
 
 	assetDir, err := homedir.Expand(p.GetAssetDir())
 	if err != nil {
-		ctxLogger.Fatalf("error expanding path: %v", err)
+		ctxLogger.Fatalf("Error expanding path: %v", err)
 	}
 
 	// Validate backend configuration.
@@ -99,7 +99,7 @@ func initialize(ctxLogger *logrus.Entry) (*terraform.Executor, platform.Platform
 func initializeTerraform(ctxLogger *logrus.Entry, p platform.Platform, b backend.Backend) *terraform.Executor {
 	assetDir, err := homedir.Expand(p.GetAssetDir())
 	if err != nil {
-		ctxLogger.Fatalf("error expanding path: %v", err)
+		ctxLogger.Fatalf("Error expanding path: %v", err)
 	}
 
 	// Render backend configuration.
