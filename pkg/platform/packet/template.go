@@ -253,6 +253,10 @@ output "initialized" {
 }
 
 # values.yaml content for all deployed charts.
+output "podcheckpointer_values" {
+  value     = module.packet-{{.Config.ClusterName}}.podcheckpointer_values
+}
+
 output "kube-apiserver_values" {
   value     = module.packet-{{.Config.ClusterName}}.kube-apiserver_values
   sensitive = true

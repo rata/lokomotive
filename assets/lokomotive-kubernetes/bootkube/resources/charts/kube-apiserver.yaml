@@ -17,5 +17,3 @@ apiserver:
   trustedCertsDir: ${trusted_certs_dir}
   replicas: ${replicas}
   exposeOnAllPorts: ${expose_on_all_ports}
-podCheckpointer:
-  image: ${pod_checkpointer_image}
