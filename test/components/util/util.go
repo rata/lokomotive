@@ -209,6 +209,13 @@ type PortForwardInfo struct {
 }
 
 func (p *PortForwardInfo) CloseChan() {
+	// This to guard against the closed channel, if you close the closed channel it panics this
+	// piece of code guards against that
+	select {
+	case <-p.stopChan:
+		return
+	default:
+	}
 	close(p.stopChan)
 }
 
@@ -250,14 +257,14 @@ func (p *PortForwardInfo) PortForward(t *testing.T) {
 		t.Logf("output of port forwarder:\n%s\n", out.String())
 		if len(errOut.String()) != 0 {
 			p.CloseChan()
-			t.Fatal(errOut.String())
+			t.Errorf(errOut.String())
 		}
 	}()
 
 	go func() {
 		if err := forwarder.ForwardPorts(); err != nil { // Locks until stopChan is closed.
 			p.CloseChan()
-			t.Fatalf("could not establish port forwarding: %v", err)
+			t.Errorf("could not establish port forwarding: %v", err)
 		}
 	}()
 }
@@ -275,7 +282,10 @@ func (p *PortForwardInfo) findLocalPort(t *testing.T) {
 
 func (p *PortForwardInfo) WaitUntilForwardingAvailable(t *testing.T) {
 	// Wait until port forwarding is available
-	for range p.readyChan {
+	select {
+	case <-p.readyChan:
+	case <-time.After(2 * time.Minute):
+		t.Fatal("timed out waiting for port forwarding")
 	}
 	p.findLocalPort(t)
 }
