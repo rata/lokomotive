@@ -16,7 +16,6 @@ package util
 
 import (
 	"fmt"
-	"time"
 
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/kube"
@@ -24,7 +23,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/kinvolk/lokomotive/pkg/components"
 	"github.com/kinvolk/lokomotive/pkg/k8sutil"
@@ -32,27 +30,7 @@ import (
 
 // InstallComponent installs given component using given kubeconfig.
 func InstallComponent(name string, c components.Component, kubeconfig string) error {
-	if c.Metadata().Helm != nil {
-		return InstallAsRelease(name, c, kubeconfig)
-	}
-
-	return InstallAsManifests(c, kubeconfig)
-}
-
-// InstallAsManifests installs given component by applying manifests directly
-// to the kube-apiserver using given kubeconfig.
-func InstallAsManifests(c components.Component, kubeconfig string) error {
-	renderedFiles, err := c.RenderManifests()
-	if err != nil {
-		return err
-	}
-
-	clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
-		&clientcmd.ConfigOverrides{},
-	)
-
-	return k8sutil.CreateAssets(clientConfig, renderedFiles, 1*time.Minute)
+	return InstallAsRelease(name, c, kubeconfig)
 }
 
 // InstallAsRelease installs a component as a Helm release using a Helm client.
