@@ -65,11 +65,14 @@ func TestPrometheusMetrics(t *testing.T) {
 		},
 	}
 
+	const prometheusPodPort = 9090
+
 	p := &testutil.PortForwardInfo{
 		PodName:   "prometheus-prometheus-operator-prometheus-0",
 		Namespace: "monitoring",
-		PodPort:   9090,
+		PodPort:   prometheusPodPort,
 	}
+
 	p.PortForward(t)
 	defer p.CloseChan()
 	p.WaitUntilForwardingAvailable(t)
@@ -87,7 +90,9 @@ func TestPrometheusMetrics(t *testing.T) {
 			t.Logf("querying %q", tc.query)
 
 			v1api := v1.NewAPI(promClient)
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			const contextTimeout = 10
+
+			ctx, cancel := context.WithTimeout(context.Background(), contextTimeout*time.Second)
 			defer cancel()
 
 			results, warnings, err := v1api.Query(ctx, tc.query, time.Now())

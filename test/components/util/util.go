@@ -281,14 +281,17 @@ func (p *PortForwardInfo) findLocalPort(t *testing.T) {
 	if len(forwardedPorts) != 1 {
 		t.Fatalf("number of forwarded ports not 1, currently forwarding on %d ports.", len(forwardedPorts))
 	}
+
 	p.LocalPort = int(forwardedPorts[0].Local)
 }
 
 func (p *PortForwardInfo) WaitUntilForwardingAvailable(t *testing.T) {
+	const portForwardTimeout = 2
+
 	// Wait until port forwarding is available
 	select {
 	case <-p.readyChan:
-	case <-time.After(2 * time.Minute):
+	case <-time.After(portForwardTimeout * time.Minute):
 		t.Fatal("timed out waiting for port forwarding")
 	}
 	p.findLocalPort(t)
