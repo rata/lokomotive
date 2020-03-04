@@ -82,6 +82,7 @@ func TestPrometheusMetrics(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(fmt.Sprintf("prometheus-%s", tc.componentName), func(t *testing.T) {
 			t.Logf("querying %q", tc.query)
 

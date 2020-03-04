@@ -248,13 +248,16 @@ func (p *PortForwardInfo) PortForward(t *testing.T) {
 		p.CloseChan()
 		t.Fatalf("could not create forwarder: %v", err)
 	}
+
 	p.portForwarder = forwarder
 
 	// This function will print any error or output to stdout
 	go func() {
 		for range p.readyChan {
 		}
+
 		t.Logf("output of port forwarder:\n%s\n", out.String())
+
 		if len(errOut.String()) != 0 {
 			p.CloseChan()
 			t.Errorf(errOut.String())
@@ -274,6 +277,7 @@ func (p *PortForwardInfo) findLocalPort(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not get information about ports: %v", err)
 	}
+
 	if len(forwardedPorts) != 1 {
 		t.Fatalf("number of forwarded ports not 1, currently forwarding on %d ports.", len(forwardedPorts))
 	}
